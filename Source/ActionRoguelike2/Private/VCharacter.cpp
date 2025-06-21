@@ -10,6 +10,7 @@
 #include "InputMappingContext.h"
 #include "InputAction.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "DrawDebugHelpers.h"
 
 
 // Sets default values
@@ -74,6 +75,22 @@ void AVCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
+    // -- Rotation Visualization -- //
+    const float DrawScale = 100.0f;
+    const float Thickness = 5.0f;
+
+    FVector LineStart = GetActorLocation();
+    // Offset to the right of pawn
+    LineStart += GetActorRightVector() * 100.0f;
+    // Set line end in direction of the actor's forward
+    FVector ActorDirection_LineEnd = LineStart + (GetActorForwardVector() * 100.0f);
+    // Draw Actor's Direction
+    DrawDebugDirectionalArrow(GetWorld(), LineStart, ActorDirection_LineEnd, DrawScale, FColor::Yellow, false, 0.0f, 0, Thickness);
+
+    FVector ControllerDirection_LineEnd = LineStart + (GetControlRotation().Vector() * 100.0f);
+    // Draw 'Controller' Rotation ('PlayerController' that 'possessed' this character)
+    DrawDebugDirectionalArrow(GetWorld(), LineStart, ControllerDirection_LineEnd, DrawScale, FColor::Green, false, 0.0f, 0, Thickness);
+
 }
 
 void AVCharacter::Turn(const FInputActionValue& Value)
@@ -90,6 +107,39 @@ void AVCharacter::MoveRight(const FInputActionValue& Value)
     FVector RightVector = FRotationMatrix(ControlRot).GetScaledAxis(EAxis::Y);
 
     AddMovementInput(RightVector, Value.Get<float>());
+}
+
+void AVCharacter::FireProjectile()
+{
+    if (!ProjectileClass)
+    {
+        UE_LOG(LogTemp, Error, TEXT("ProjectileClass is NULL! Cannot fire projectile."));
+        return;
+    }
+
+    // Offset forward from the character's eyes or chest
+    FVector MuzzleOffset = FVector(100.0f, 0.0f, 50.0f); // forward + upward
+    FVector MuzzleLocation = GetActorLocation() + GetControlRotation().RotateVector(MuzzleOffset);
+
+    // Use the control rotation to shoot forward
+    FRotator MuzzleRotation = GetControlRotation();
+
+    // Setup spawn parameters
+    FActorSpawnParameters SpawnParams;
+    SpawnParams.Owner = this;
+    SpawnParams.Instigator = GetInstigator();
+
+    // Spawn the projectile
+    AActor* SpawnedProjectile = GetWorld()->SpawnActor<AActor>(ProjectileClass, MuzzleLocation, MuzzleRotation, SpawnParams);
+
+    if (SpawnedProjectile)
+    {
+        UE_LOG(LogTemp, Log, TEXT("Projectile spawned successfully."));
+    }
+    else
+    {
+        UE_LOG(LogTemp, Warning, TEXT("Failed to spawn projectile."));
+    }
 }
 
 // Called to bind functionality to input
@@ -118,6 +168,11 @@ void AVCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponen
             EnhancedInput->BindAction(LookAction, ETriggerEvent::Triggered, this, &AVCharacter::Look);
         else
             UE_LOG(LogTemp, Error, TEXT("LookAction is NULL!"));
+
+        if (FireProjectileAction)
+            EnhancedInput->BindAction(FireProjectileAction, ETriggerEvent::Started, this, &AVCharacter::FireProjectile);
+        else
+            UE_LOG(LogTemp, Error, TEXT("FireProjectileAction is NULL!"));
     }
     else
     {

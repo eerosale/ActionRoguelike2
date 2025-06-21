@@ -45,6 +45,15 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Input")
 	UInputAction* LookAction;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
+	class UInputAction* FireProjectileAction;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat")
+	TSubclassOf<AActor> ProjectileClass;
+
+	UFUNCTION()
+	void FireProjectile();
+
 	void MoveRight(const FInputActionValue& Value);
 
 	void Turn(const FInputActionValue& Value);
